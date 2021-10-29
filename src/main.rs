@@ -7,7 +7,7 @@ use std::fs::OpenOptions;
 use std::io::prelude::*;
 use std::io::{self, BufRead};
 use std::path::Path;
-use std::process::Command;
+use std::process::{Child, Command, Stdio};
 use structopt::StructOpt;
 use whoami;
 
@@ -22,40 +22,67 @@ const PARSE_LINE_CONTINUE: i16 = 1;
 const PARSE_LINE_BREAK: i16 = 2;
 
 fn parse_line(homedir: String, line: String) -> i16 {
-    let mut parts = line.trim().split_whitespace();
-    let command = match parts.next() {
-        Some(n) => n,
-        None => return 1,
-    };
-    match command {
-        // Builtins
-        "cd" => {
-            let new_dir = match parts.peekable().peek() {
-                Some(&m) => m,
-                None => return PARSE_LINE_CONTINUE,
-            };
-            let dir = new_dir.to_string().replace("~", &homedir.to_string());
-            let root = std::path::Path::new(&dir);
-            if let Err(_) = std::env::set_current_dir(&root) {
-                println!("cd: no such file or directory: {}", dir);
+    let mut commands = line.trim().split("|").peekable();
+    let mut prev_command = None;
+
+    while let Some(command) = commands.next() {
+        let mut parts = command.trim().split_whitespace();
+        let command = match parts.next() {
+            Some(n) => n,
+            None => return 1,
+        };
+        match command {
+            // Builtins
+            "cd" => {
+                let new_dir = match parts.peekable().peek() {
+                    Some(&m) => m,
+                    None => return PARSE_LINE_CONTINUE,
+                };
+                let dir = new_dir.to_string().replace("~", &homedir.to_string());
+                let root = std::path::Path::new(&dir);
+                if let Err(_) = std::env::set_current_dir(&root) {
+                    println!("cd: no such file or directory: {}", dir);
+                }
+            }
+
+            "exit" => return PARSE_LINE_BREAK,
+
+            command => {
+                let stdin = prev_command.map_or(Stdio::inherit(), |output: Child| {
+                    Stdio::from(output.stdout.unwrap())
+                });
+
+                let stdout = if commands.peek().is_some() {
+                    Stdio::piped()
+                } else {
+                    Stdio::inherit()
+                };
+
+                match Command::new(command)
+                    .args(parts)
+                    .stdin(stdin)
+                    .stdout(stdout)
+                    .spawn()
+                {
+                    Ok(output) => {
+                        prev_command = Some(output);
+                    }
+                    Err(_) => {
+                        prev_command = None;
+                        zash_error(format!("command not found: {}", command));
+                    }
+                };
             }
         }
-
-        "exit" => return PARSE_LINE_BREAK,
-
-        command => {
-            let mut child = match Command::new(command).args(parts).spawn() {
-                Ok(m) => m,
-                Err(_) => {
-                    zash_error(format!("command not found: {}", command));
-                    return PARSE_LINE_CONTINUE;
-                }
-            };
-            child.wait().unwrap();
-        }
     }
+
+    if let Some(mut final_command) = prev_command {
+        final_command.wait().unwrap();
+    }
+
     return PARSE_LINE_SUCCESS;
 }
+
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
 where
     P: AsRef<Path>,
@@ -122,12 +149,11 @@ fn main() {
         match readline {
             Ok(line) => {
                 rl.add_history_entry(line.as_str());
-                
                 match parse_line(homedir.to_string(), line) {
-                    PARSE_LINE_SUCCESS => {},
+                    PARSE_LINE_SUCCESS => {}
                     PARSE_LINE_CONTINUE => continue,
                     PARSE_LINE_BREAK => break,
-                    _ => break
+                    _ => break,
                 }
             }
             Err(ReadlineError::Interrupted) => {
