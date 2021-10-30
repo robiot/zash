@@ -1,4 +1,3 @@
-use dirs::home_dir;
 use rustyline::completion::{Completer, FilenameCompleter, Pair};
 use rustyline::config::OutputStreamType;
 use rustyline::error::ReadlineError;
@@ -27,6 +26,7 @@ pub fn parse_line(homedir: String, line: String) -> i16 {
             Some(n) => n,
             None => return PARSE_LINE_CONTINUE,
         };
+
         match command {
             // Builtins
             "cd" => {
@@ -148,7 +148,7 @@ impl Validator for ShellHelper {
     }
 }
 
-pub fn shell() {
+pub fn shell(homedir: std::path::Display) {
     let config = Config::builder()
         .history_ignore_space(true)
         .completion_type(CompletionType::List)
@@ -166,15 +166,7 @@ pub fn shell() {
 
     let mut rl = Editor::with_config(config);
     rl.set_helper(Some(helper));
-    if home_dir().is_none() {
-        utils::zash_error(
-            "Home directory could not be found. Make sure you have a folder for your user in /home",
-        );
-        return;
-    }
 
-    let homedir_pathbuf = home_dir().unwrap();
-    let homedir = homedir_pathbuf.display();
     utils::load_zashrc(homedir.to_string());
     let hispath = format!("{}/.zash_history", homedir);
     if rl.load_history(&hispath).is_err() {
