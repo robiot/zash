@@ -2,6 +2,7 @@
  * License: GPL-3.0
  * https://github.com/robiot/zash
  */
+
 use signal_hook::{consts, iterator::Signals};
 use structopt::StructOpt;
 use dirs::home_dir;
