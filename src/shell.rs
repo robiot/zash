@@ -1,3 +1,4 @@
+use colored::Colorize;
 use rustyline::completion::{Completer, FilenameCompleter, Pair};
 use rustyline::config::OutputStreamType;
 use rustyline::error::ReadlineError;
@@ -8,43 +9,30 @@ use rustyline::{CompletionType, Config, Context, EditMode, Editor};
 use rustyline_derive::Helper;
 use std::borrow::Cow::{self, Borrowed, Owned};
 use std::process::{Child, Command, Stdio};
-use colored::Colorize;
 use whoami;
 
-use crate::utils;
+use crate::builtins;
 use crate::parser;
+use crate::utils;
 
-const PARSE_LINE_SUCCESS: i16 = 0;
-const PARSE_LINE_CONTINUE: i16 = 1;
-const PARSE_LINE_BREAK: i16 = 2;
-pub fn parse_line(homedir: String, line: String) -> i16 {
+const RUN_LINE_SUCCESS: i16 = 0;
+const RUN_LINE_CONTINUE: i16 = 1;
+const RUN_LINE_BREAK: i16 = 2;
+pub fn run_line(line: String) -> i16 {
     let mut commands = line.trim().split("|").peekable();
     let mut prev_command = None;
 
     while let Some(command) = commands.next() {
-        //let parts = command.trim().split_whitespace();
         let mut args = parser::Parser::new(command.trim());
         let command = match args.next() {
             Some(n) => n,
-            None => return PARSE_LINE_CONTINUE,
+            None => return RUN_LINE_CONTINUE,
         };
-    
         match command.as_ref() {
             // Builtins
-            "cd" => {
-                let mut peekable = args.peekable();
-                let new_dir = match peekable.peek().as_ref() {
-                    Some(&m) => m,
-                    None => return PARSE_LINE_CONTINUE,
-                };
-                let dir = new_dir.to_string().replace("~", &homedir.to_string());
-                let root = std::path::Path::new(&dir);
-                if let Err(_) = std::env::set_current_dir(&root) {
-                    println!("{}: no such file or directory: {}", "cd".red(), dir);
-                }
-            }
+            "cd" => builtins::cd::cd(args),
 
-            "exit" => return PARSE_LINE_BREAK,
+            "exit" => return RUN_LINE_BREAK,
 
             command => {
                 let stdin = prev_command.map_or(Stdio::inherit(), |output: Child| {
@@ -79,7 +67,7 @@ pub fn parse_line(homedir: String, line: String) -> i16 {
         final_command.wait().unwrap();
     }
 
-    return PARSE_LINE_SUCCESS;
+    return RUN_LINE_SUCCESS;
 }
 
 #[derive(Helper)]
@@ -151,7 +139,8 @@ impl Validator for ShellHelper {
     }
 }
 
-pub fn shell(homedir: std::path::Display) {
+pub fn shell() {
+    let homedir = utils::get_home_dir();
     let config = Config::builder()
         .history_ignore_space(true)
         .completion_type(CompletionType::List)
@@ -170,7 +159,7 @@ pub fn shell(homedir: std::path::Display) {
     let mut rl = Editor::with_config(config);
     rl.set_helper(Some(helper));
 
-    utils::load_zashrc(homedir.to_string());
+    utils::load_zashrc(homedir.clone());
     let hispath = format!("{}/.zash_history", homedir);
     if rl.load_history(&hispath).is_err() {
         utils::zash_error("No previous history");
@@ -197,10 +186,10 @@ pub fn shell(homedir: std::path::Display) {
         match readline {
             Ok(line) => {
                 rl.add_history_entry(line.as_str());
-                match parse_line(homedir.to_string(), line) {
-                    PARSE_LINE_SUCCESS => {}
-                    PARSE_LINE_CONTINUE => continue,
-                    PARSE_LINE_BREAK => break,
+                match run_line(line) {
+                    RUN_LINE_SUCCESS => {}
+                    RUN_LINE_CONTINUE => continue,
+                    RUN_LINE_BREAK => break,
                     _ => break,
                 }
             }
