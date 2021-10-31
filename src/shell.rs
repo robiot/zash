@@ -4,7 +4,7 @@ use rustyline::config::OutputStreamType;
 use rustyline::error::ReadlineError;
 use rustyline::highlight::{Highlighter, MatchingBracketHighlighter};
 use rustyline::hint::{Hinter, HistoryHinter};
-use rustyline::validate::{self, MatchingBracketValidator, Validator};
+use rustyline::validate::{MatchingBracketValidator, Validator};
 use rustyline::{CompletionType, Config, Context, EditMode, Editor};
 use rustyline_derive::Helper;
 use std::borrow::Cow::{self, Borrowed, Owned};
@@ -127,12 +127,14 @@ impl Highlighter for ShellHelper {
 }
 
 impl Validator for ShellHelper {
-    fn validate(
-        &self,
-        ctx: &mut validate::ValidationContext,
-    ) -> rustyline::Result<validate::ValidationResult> {
-        self.validator.validate(ctx)
-    }
+    // This is commented because of issue (#5)
+    
+    // fn validate(
+    //     &self,
+    //     ctx: &mut validate::ValidationContext,
+    // ) -> rustyline::Result<validate::ValidationResult> {
+    //     self.validator.validate(ctx)
+    // }
 
     fn validate_while_typing(&self) -> bool {
         self.validator.validate_while_typing()
