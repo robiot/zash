@@ -10,6 +10,7 @@ use dirs::home_dir;
 mod opts;
 mod shell;
 mod utils;
+mod parser;
 
 fn signal_handler() {
     Signals::new(&[consts::SIGINT]).unwrap();
