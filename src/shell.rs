@@ -12,6 +12,7 @@ use colored::Colorize;
 use whoami;
 
 use crate::utils;
+use crate::parser;
 
 const PARSE_LINE_SUCCESS: i16 = 0;
 const PARSE_LINE_CONTINUE: i16 = 1;
@@ -21,16 +22,18 @@ pub fn parse_line(homedir: String, line: String) -> i16 {
     let mut prev_command = None;
 
     while let Some(command) = commands.next() {
-        let mut parts = command.trim().split_whitespace();
-        let command = match parts.next() {
+        //let parts = command.trim().split_whitespace();
+        let mut args = parser::Parser::new(command.trim());
+        let command = match args.next() {
             Some(n) => n,
             None => return PARSE_LINE_CONTINUE,
         };
-
-        match command {
+    
+        match command.as_ref() {
             // Builtins
             "cd" => {
-                let new_dir = match parts.peekable().peek() {
+                let mut peekable = args.peekable();
+                let new_dir = match peekable.peek().as_ref() {
                     Some(&m) => m,
                     None => return PARSE_LINE_CONTINUE,
                 };
@@ -55,7 +58,7 @@ pub fn parse_line(homedir: String, line: String) -> i16 {
                 };
 
                 match Command::new(command)
-                    .args(parts)
+                    .args(args)
                     .stdin(stdin)
                     .stdout(stdout)
                     .spawn()
