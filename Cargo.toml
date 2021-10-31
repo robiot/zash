@@ -2,6 +2,7 @@
 name = "zash"
 description = "Zash - A Zuper Awesome Shell"
 license = "GPL-3.0"
+authors = ["robiot"]
 edition = "2018"
 repository="https://github.com/robiot/zash"
 version = "0.1.1"
