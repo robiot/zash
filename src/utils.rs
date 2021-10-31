@@ -1,11 +1,15 @@
-
+use crate::shell;
+use colored::Colorize;
+use dirs::home_dir;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::prelude::*;
 use std::io::{self, BufRead};
 use std::path::Path;
-use colored::Colorize;
-use crate::shell;
+
+pub fn exit(code: i32) {
+    std::process::exit(code);
+}
 
 pub fn zash_error<T: std::string::ToString>(error: T) {
     eprintln!("{}: {}", "zash".red(), error.to_string());
@@ -24,7 +28,7 @@ pub fn load_zashrc(homedir: String) {
     if let Ok(lines) = read_lines(rcpath) {
         for line in lines {
             if let Ok(ip) = line {
-                shell::parse_line(homedir.to_string(), ip);
+                shell::run_line(ip);
             }
         }
     } else {
@@ -37,4 +41,15 @@ pub fn load_zashrc(homedir: String) {
             .unwrap();
         writeln!(file, "echo {}", welcometext).unwrap();
     }
+}
+
+pub fn get_home_dir() -> String {
+    if home_dir().is_none() {
+        zash_error(
+            "Home directory could not be found. Make sure you have a folder for your user in /home",
+        );
+        exit(1);
+    }
+    let homedir_pathbuf = home_dir().unwrap();
+    return homedir_pathbuf.display().to_string();
 }
