@@ -4,7 +4,7 @@ description = "Zash - A Zuper Awesome Shell"
 license = "GPL-3.0"
 edition = "2018"
 repository="https://github.com/robiot/zash"
-version = "0.1.0"
+version = "0.1.1"
 
 [dependencies]
 dirs = "4.0.0"
