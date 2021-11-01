@@ -20,8 +20,7 @@ const RUN_LINE_CONTINUE: i16 = 1;
 const RUN_LINE_BREAK: i16 = 2;
 pub fn run_line(line: String) -> i16 {
     let mut commands = line.trim().split("&&").peekable();
-    while let Some(command) = commands.next()
-    {
+    while let Some(command) = commands.next() {
         let mut pipe_commands = command.trim().split("|").peekable();
         let mut prev_command = None;
         while let Some(pipe_command) = pipe_commands.next() {
@@ -33,20 +32,17 @@ pub fn run_line(line: String) -> i16 {
             match command.as_ref() {
                 // Builtins
                 "cd" => builtins::cd::cd(args),
-    
+                "echo" => builtins::echo::echo(args),
                 "exit" => return RUN_LINE_BREAK,
-    
                 command => {
                     let stdin = prev_command.map_or(Stdio::inherit(), |output: Child| {
                         Stdio::from(output.stdout.unwrap())
                     });
-    
                     let stdout = if pipe_commands.peek().is_some() {
                         Stdio::piped()
                     } else {
                         Stdio::inherit()
                     };
-    
                     match Command::new(command)
                         .args(args)
                         .stdin(stdin)
@@ -64,10 +60,9 @@ pub fn run_line(line: String) -> i16 {
                 }
             }
         }
-    
         if let Some(mut final_command) = prev_command {
             final_command.wait().unwrap();
-        }    
+        }
     }
 
     return RUN_LINE_SUCCESS;
@@ -131,7 +126,6 @@ impl Highlighter for ShellHelper {
 
 impl Validator for ShellHelper {
     // This is commented because of issue (#5)
-    
     // fn validate(
     //     &self,
     //     ctx: &mut validate::ValidationContext,
