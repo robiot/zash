@@ -32,7 +32,6 @@ pub fn run_line(line: String) -> i16 {
             match command.as_ref() {
                 // Builtins
                 "cd" => builtins::cd::cd(args),
-                "echo" => builtins::echo::echo(args),
                 "exit" => return RUN_LINE_BREAK,
                 command => {
                     let stdin = prev_command.map_or(Stdio::inherit(), |output: Child| {
