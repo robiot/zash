@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::iter::Peekable;
 use std::str::CharIndices;
 
@@ -9,21 +8,22 @@ enum ParsingState {
     SingleQuoted,
     DoubleQuoted,
     DoubleQuotedEscaped,
+    Separator
 }
 
 #[derive(Debug)]
 pub struct Parser<'a> {
     state: ParsingState,
     cmdline: Peekable<CharIndices<'a>>,
-    separators: HashSet<char>,
+    separator: String,
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(cmdline: &str) -> Parser {
+    pub fn new(cmdline: &str, sep: String) -> Parser {
         Parser {
             state: ParsingState::Normal,
             cmdline: cmdline.char_indices().peekable(),
-            separators: [' '].iter().cloned().collect(),
+            separator: sep,
         }
     }
 }
@@ -41,16 +41,23 @@ impl<'a> Iterator for Parser<'a> {
             let mut yield_value = false;
             let mut was_quoted = false;
 
+
             for (_, c) in &mut self.cmdline {
                 self.state = match (self.state, c) {
+                    (Normal, '#') => {break;}, // Comment
                     (Normal, '\\') => Escaped,
                     (Normal, '\'') => SingleQuoted,
                     (Normal, '"') => DoubleQuoted,
-                    (Normal, ref c) if self.separators.contains(c) => {
-                        if arg.len() > 0 || was_quoted {
-                            yield_value = true;
+                    (Normal, ref c) if &self.separator.chars().next().unwrap() == c => {
+                        // Ex &&
+                        if self.separator.len() > 2 {
+                            Separator
+                        } else {
+                            if arg.len() > 0 || was_quoted {
+                                yield_value = true;
+                            }
+                            Normal
                         }
-                        Normal
                     },
                     (Normal, _) |
                     (Escaped, _) => { arg.push(c); Normal },
@@ -65,6 +72,12 @@ impl<'a> Iterator for Parser<'a> {
                         arg.push('\\');
                         arg.push(c);
                         DoubleQuoted
+                    },
+                    (Separator, _) => {
+                        if arg.len() > 0 || was_quoted {
+                            yield_value = true;
+                        }
+                        Normal
                     },
                 };
 
