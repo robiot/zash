@@ -19,13 +19,12 @@ const RUN_LINE_SUCCESS: i16 = 0;
 const RUN_LINE_CONTINUE: i16 = 1;
 const RUN_LINE_BREAK: i16 = 2;
 pub fn run_line(line: String) -> i16 {
-    let mut commands = parser::Parser::new(line.trim(), ";".to_string()).peekable();
-
+    let mut commands = parser::Parser::new(line.trim(), ";".to_string(), true).peekable();
     while let Some(command) = commands.next() {
-        let mut pipe_commands = parser::Parser::new(command.trim(), "|".to_string()).peekable();
+        let mut pipe_commands = parser::Parser::new(command.trim(), "|".to_string(), true).peekable();
         let mut prev_command = None;
         while let Some(pipe_command) = pipe_commands.next() {
-            let mut args = parser::Parser::new(pipe_command.trim(), " ".to_string());
+            let mut args = parser::Parser::new(pipe_command.trim(), " ".to_string(), false);
             let command = match args.next() {
                 Some(n) => n,
                 None => return RUN_LINE_CONTINUE,
