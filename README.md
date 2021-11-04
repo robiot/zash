@@ -3,7 +3,7 @@
  
 Welcome to zash, its activily being developed and is not near a stable release.
 
-![Example](https://raw.githubusercontent.com/robiot/zash/main/img/new-example.png)
+![Example](https://raw.githubusercontent.com/robiot/zash/main/img/example.png)
 
 ## Installation
 ### Arch:
