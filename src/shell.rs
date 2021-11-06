@@ -15,10 +15,7 @@ use crate::builtins;
 use crate::parser;
 use crate::utils;
 
-const RUN_LINE_SUCCESS: i16 = 0;
-const RUN_LINE_CONTINUE: i16 = 1;
-const RUN_LINE_BREAK: i16 = 2;
-pub fn run_line(line: String) -> i16 {
+pub fn run_line(line: String) -> bool {
     let mut commands = parser::Parser::new(line.trim(), ";".to_string(), true).peekable();
     while let Some(command) = commands.next() {
         let mut pipe_commands = parser::Parser::new(command.trim(), "|".to_string(), true).peekable();
@@ -27,12 +24,12 @@ pub fn run_line(line: String) -> i16 {
             let mut args = parser::Parser::new(pipe_command.trim(), " ".to_string(), false);
             let command = match args.next() {
                 Some(n) => n,
-                None => return RUN_LINE_CONTINUE,
+                None => return true,
             };
             match command.as_ref() {
                 // Builtins
                 "cd" => builtins::cd::cd(args),
-                "exit" => return RUN_LINE_BREAK,
+                "exit" => return false,
                 command => {
                     let stdin = prev_command.map_or(Stdio::inherit(), |output: Child| {
                         Stdio::from(output.stdout.unwrap())
@@ -64,7 +61,7 @@ pub fn run_line(line: String) -> i16 {
         }
     }
 
-    return RUN_LINE_SUCCESS;
+    return true;
 }
 
 #[derive(Helper)]
@@ -185,10 +182,8 @@ pub fn shell() {
             Ok(line) => {
                 rl.add_history_entry(line.as_str());
                 match run_line(line) {
-                    RUN_LINE_SUCCESS => {}
-                    RUN_LINE_CONTINUE => continue,
-                    RUN_LINE_BREAK => break,
-                    _ => break,
+                    true => {},
+                    false => break,
                 }
             }
             Err(ReadlineError::Interrupted) => {
