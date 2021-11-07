@@ -1,3 +1,4 @@
 /target
 /pkg
 Makefile
+config.toml
