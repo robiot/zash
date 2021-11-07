@@ -15,7 +15,7 @@ use crate::builtins;
 use crate::parser;
 use crate::utils;
 
-pub fn run_line(line: String) -> bool {
+pub fn run_line(line: String) {
     let mut commands = parser::Parser::new(line.trim(), ";".to_string(), true).peekable();
     while let Some(command) = commands.next() {
         let mut pipe_commands = parser::Parser::new(command.trim(), "|".to_string(), true).peekable();
@@ -24,12 +24,12 @@ pub fn run_line(line: String) -> bool {
             let mut args = parser::Parser::new(pipe_command.trim(), " ".to_string(), false);
             let command = match args.next() {
                 Some(n) => n,
-                None => return true,
+                None => return,
             };
             match command.as_ref() {
                 // Builtins
                 "cd" => builtins::cd::cd(args),
-                "exit" => return false,
+                "exit" => builtins::exit::exit(args),
                 command => {
                     let stdin = prev_command.map_or(Stdio::inherit(), |output: Child| {
                         Stdio::from(output.stdout.unwrap())
@@ -60,8 +60,6 @@ pub fn run_line(line: String) -> bool {
             final_command.wait().unwrap();
         }
     }
-
-    return true;
 }
 
 #[derive(Helper)]
@@ -181,10 +179,7 @@ pub fn shell() {
         match readline {
             Ok(line) => {
                 rl.add_history_entry(line.as_str());
-                match run_line(line) {
-                    true => {},
-                    false => break,
-                }
+                run_line(line);
             }
             Err(ReadlineError::Interrupted) => {
                 continue;
