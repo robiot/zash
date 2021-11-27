@@ -30,6 +30,7 @@ impl<'a> Parser<'a> {
     }
 }
 
+// This will be cleaned up
 impl<'a> Iterator for Parser<'a> {
     type Item = String;
 
