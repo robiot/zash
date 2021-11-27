@@ -16,3 +16,5 @@ yay -S zash
 ```
 chsh -s /usr/bin/zash
 ```
+
+*No it is not dead, im working on it :)*
