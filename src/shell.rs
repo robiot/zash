@@ -46,7 +46,7 @@ fn exec_command(token: (parser::LineTCmdTokens, std::string::String)) -> i32 {
             Some(n) => n,
             None => return 1,
         };
-        match command.as_ref() {
+        let status = match command.as_ref() {
             // Builtins
             "cd" => builtins::cd::cd(args),
             "exit" => builtins::exit::exit(args),
@@ -74,7 +74,11 @@ fn exec_command(token: (parser::LineTCmdTokens, std::string::String)) -> i32 {
                         return 1;
                     }
                 };
+                0
             }
+        };
+        if status != 0 {
+            return status;
         }
     }
     if let Some(mut final_command) = prev_command {
