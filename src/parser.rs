@@ -8,7 +8,6 @@ enum ParsingState {
     SingleQuoted,
     DoubleQuoted,
     DoubleQuotedEscaped,
-    Separator,
 }
 
 #[derive(Debug)]
@@ -44,9 +43,6 @@ impl<'a> Iterator for Parser<'a> {
 
             for (_, c) in &mut self.cmdline {
                 self.state = match (self.state, c) {
-                    (Normal, '#') => {
-                        break;
-                    } // Comment
                     (Normal, '\\') => {
                         if self.keep_escape {
                             arg.push(c);
@@ -66,15 +62,10 @@ impl<'a> Iterator for Parser<'a> {
                         DoubleQuoted
                     }
                     (Normal, ref c) if &self.separator.chars().next().unwrap() == c => {
-                        // Ex &&
-                        if self.separator.len() > 1 {
-                            Separator
-                        } else {
-                            if arg.len() > 0 || was_quoted {
-                                yield_value = true;
-                            }
-                            Normal
+                        if arg.len() > 0 || was_quoted {
+                            yield_value = true;
                         }
+                        Normal
                     }
                     (Normal, _) | (Escaped, _) => {
                         arg.push(c);
@@ -109,12 +100,6 @@ impl<'a> Iterator for Parser<'a> {
                         arg.push('\\');
                         arg.push(c);
                         DoubleQuoted
-                    }
-                    (Separator, _) => {
-                        if arg.len() > 0 || was_quoted {
-                            yield_value = true;
-                        }
-                        Normal
                     }
                 };
 
