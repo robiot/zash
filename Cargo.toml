@@ -1,17 +1,17 @@
 [package]
-name = "zash"
-description = "Zash - A Zuper Awesome Shell"
-license = "GPL-3.0"
 authors = ["robiot"]
+description = "Zash - A Zuper Awesome Shell"
 edition = "2018"
-repository="https://github.com/robiot/zash"
+license = "GPL-3.0"
+name = "zash"
+repository = "https://github.com/robiot/zash"
 version = "0.1.1"
 
 [dependencies]
+colored = "2.0.0"
 dirs = "4.0.0"
-rustyline = "9.0.0"
+rustyline = {git = "https://github.com/robiot/rustyline"}
 rustyline-derive = "0.5.0"
 signal-hook = "0.3.10"
 structopt = "0.3.25"
 whoami = "1.1.5"
-colored = "2.0.0"
