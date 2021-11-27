@@ -82,6 +82,9 @@ impl<'a> Iterator for Parser<'a> {
                     }
                     (SingleQuoted, '\'') => {
                         was_quoted = true;
+                        if self.keep_escape {
+                            arg.push(c);
+                        }
                         Normal
                     }
                     (SingleQuoted, _) => {
@@ -90,6 +93,9 @@ impl<'a> Iterator for Parser<'a> {
                     }
                     (DoubleQuoted, '"') => {
                         was_quoted = true;
+                        if self.keep_escape {
+                            arg.push(c);
+                        }
                         Normal
                     }
                     (DoubleQuoted, '\\') => DoubleQuotedEscaped,
@@ -126,7 +132,6 @@ impl<'a> Iterator for Parser<'a> {
     }
 }
 
-
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub enum LineTCmdState {
     Normal,
@@ -148,8 +153,8 @@ pub enum LineTCmdTokens {
 // line_to_cmds("echo hello; echo goodbye")
 // [(Command, "echo hello"), (Separator, ";"), (Command, "echo goodbye")]
 pub fn line_to_cmds(line: &str) -> Vec<(LineTCmdTokens, std::string::String)> {
-    use LineTCmdTokens::*;
     use LineTCmdState::*;
+    use LineTCmdTokens::*;
     let mut result = Vec::new();
     let mut token = String::new();
     let mut sep_before: char = '\0';
