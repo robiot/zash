@@ -1,7 +1,7 @@
 use crate::parser;
 use crate::utils;
 
-pub fn exit(args: parser::Parser)
+pub fn exit(args: parser::Parser) -> i32
 {
     let mut peekable = args.peekable();
     if let Some(exit_code) = peekable.peek().as_ref()
@@ -10,10 +10,11 @@ pub fn exit(args: parser::Parser)
             Ok(m) => m,
             Err(_) => {
                 utils::zash_error("exit: numeric argument required");
-                return;
+                return 1;
             }
         });
     } else {
         utils::exit(0);
     }
+    0
 }

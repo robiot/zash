@@ -2,7 +2,7 @@ use colored::Colorize;
 use crate::parser;
 use crate::utils;
 
-pub fn cd(args: parser::Parser)
+pub fn cd(args: parser::Parser) -> i32
 {
     let homedir = utils::get_home_dir();
     let mut peekable = args.peekable();
@@ -12,6 +12,8 @@ pub fn cd(args: parser::Parser)
         let root = std::path::Path::new(&dir);
         if let Err(_) = std::env::set_current_dir(&root) {
             println!("{}: no such file or directory: {}", "cd".red(), dir);
+            return 1;
         }
     }
+    0
 }
