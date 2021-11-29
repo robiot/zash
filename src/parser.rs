@@ -217,3 +217,61 @@ pub fn line_to_cmds(line: &str) -> Vec<(LineTCmdTokens, std::string::String)> {
     }
     result
 }
+
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_line_to_cmds() {
+        fn s(input: &str) -> String {
+            input.to_string()
+        }
+        use crate::parser::line_to_cmds;
+        use crate::parser::LineTCmdTokens::*;
+
+        let v = vec![
+            ("   ls  ", vec![(Command, s("ls"))]), // Trim input
+            ("ls", vec![(Command, s("ls"))]),
+            (
+                "echo morning & echo night",
+                vec![(Command, s("echo morning & echo night"))],
+            ),
+            (
+                "echo morning && echo night",
+                vec![
+                    (Command, s("echo morning")),
+                    (Separator, s("&&")),
+                    (Command, s("echo night")),
+                ],
+            ),
+            ("ls | grep .bashrc", vec![(Command, s("ls | grep .bashrc"))]),
+            // Quotes
+            (
+                r#"echo "What an awesome day && nice weather""#,
+                vec![(Command, s(r#"echo "What an awesome day && nice weather""#))],
+            ),
+            (
+                r#"echo 'What an awesome day && nice weather'"#,
+                vec![(Command, s(r#"echo 'What an awesome day && nice weather'"#))],
+            ),
+            // Escape
+            (
+                r#"echo \"What an awesome day && nice weather\""#,
+                vec![
+                    (Command, s(r#"echo \"What an awesome day"#)),
+                    (Separator, s("&&")),
+                    (Command, s(r#"nice weather\""#)),
+                ],
+            ),
+            (
+                r#"echo What an awesome day \&\& nice weather"#,
+                vec![(Command, s(r#"echo What an awesome day \&\& nice weather"#))],
+            ),
+            (";", vec![(Separator, s(";"))]),
+        ];
+
+        for (l, r) in v {
+            assert_eq!(line_to_cmds(l), r);
+        }
+    }
+}
