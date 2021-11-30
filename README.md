@@ -1,4 +1,4 @@
-# Zash - A Zuper Awesome Shell
+# Zash - A Zuper Awesome Unix Shell
  ![Img](https://img.shields.io/aur/version/zash)
  
 Welcome to zash, its activily being developed and is not near a stable release.
