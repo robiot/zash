@@ -13,6 +13,7 @@ use std::process::{Child, Command, Stdio};
 use crate::builtins;
 use crate::parser;
 use crate::utils;
+use crate::scripting;
 
 pub fn run_line(line: String) {
     let mut status = 0;
@@ -178,7 +179,7 @@ pub fn shell() {
     let mut rl = Editor::with_config(config);
     rl.set_helper(Some(helper));
 
-    utils::load_zashrc(homedir.clone());
+    scripting::load_rc(homedir.clone());
     let hispath = format!("{}/.zash_history", homedir);
     if rl.load_history(&hispath).is_err() {
         utils::zash_error("No previous history");
