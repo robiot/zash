@@ -12,4 +12,7 @@ pub struct Opts {
 
     #[structopt(short, long)]
     pub command: Option<String>,
+
+    #[structopt(max_values = 1)]
+    pub script_file: Option<String>
 }
