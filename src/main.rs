@@ -5,7 +5,7 @@
 use signal_hook::{consts, iterator::Signals};
 use structopt::StructOpt;
 
-mod builtins;
+// mod builtins;
 mod opts;
 mod parser;
 mod scripting;
