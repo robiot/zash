@@ -8,18 +8,20 @@ use rustyline::validate::{MatchingBracketValidator, Validator};
 use rustyline::{CompletionType, Config, Context, EditMode, Editor};
 use rustyline_derive::Helper;
 use std::borrow::Cow::{self, Borrowed, Owned};
-use std::process::{Child, Command, Stdio};
+use parser::tokens::*;
+// use std::process::{Child, Command, Stdio};
 
-use crate::builtins;
+
+// use crate::builtins;
 use crate::parser;
-use crate::utils;
 use crate::scripting;
+use crate::utils;
 
 pub fn run_line(line: String) {
     let mut status = 0;
     let mut sep = String::new();
-    for token in parser::line_to_cmds(line.trim()) {
-        if token.0 == parser::LineTCmdTokens::Separator {
+    for token in parser::lexer::line_to_cmds(line.trim()) {
+        if token.0 == LineToCmdTokens::Separator {
             sep = token.1.clone();
             continue;
         }
@@ -38,53 +40,59 @@ pub fn run_line(line: String) {
     }
 }
 
-fn exec_command(token: (parser::LineTCmdTokens, std::string::String)) -> i32 {
-    let mut pipe_commands = parser::Parser::new(token.1.trim(), "|".to_string(), true).peekable();
-    let mut prev_command = None;
-    while let Some(pipe_command) = pipe_commands.next() {
-        let mut args = parser::Parser::new(pipe_command.trim(), " ".to_string(), false);
-        let command = match args.next() {
-            Some(n) => n,
-            None => return 1,
-        };
-        let status = match command.as_ref() {
-            // Builtins
-            "cd" => builtins::cd::cd(args),
-            "exit" => builtins::exit::exit(args),
-            command => {
-                let stdin = prev_command.map_or(Stdio::inherit(), |output: Child| {
-                    Stdio::from(output.stdout.unwrap())
-                });
-                let stdout = if pipe_commands.peek().is_some() {
-                    Stdio::piped()
-                } else {
-                    Stdio::inherit()
-                };
-                match Command::new(command)
-                    .args(args)
-                    .stdin(stdin)
-                    .stdout(stdout)
-                    .spawn()
-                {
-                    Ok(output) => {
-                        prev_command = Some(output);
-                    }
-                    Err(_) => {
-                        // prev_command = None;
-                        utils::zash_error(format!("command not found: {}", command));
-                        return 1;
-                    }
-                };
-                0
-            }
-        };
-        if status != 0 {
-            return status;
-        }
-    }
-    if let Some(mut final_command) = prev_command {
-        final_command.wait().unwrap();
-    }
+fn exec_command(token: (LineToCmdTokens, std::string::String)) -> i32 {
+    let parts = parser::parser::parse_cmd(token.1.clone());
+
+    println!("{:#?}", parts);
+
+    // Add up args until Pipe?
+
+    // let mut pipe_commands = parser::Parser::new(token.1.trim(), "|".to_string(), true).peekable();
+    // let mut prev_command = None;
+    // while let Some(pipe_command) = pipe_commands.next() {
+    //     let mut args = parser::Parser::new(pipe_command.trim(), " ".to_string(), false);
+    //     let command = match args.next() {
+    //         Some(n) => n,
+    //         None => return 1,
+    //     };
+    //     let status = match command.as_ref() {
+    //         // Builtins
+    //         "cd" => builtins::cd::cd(args),
+    //         "exit" => builtins::exit::exit(args),
+    //         command => {
+    //             let stdin = prev_command.map_or(Stdio::inherit(), |output: Child| {
+    //                 Stdio::from(output.stdout.unwrap())
+    //             });
+    //             let stdout = if pipe_commands.peek().is_some() {
+    //                 Stdio::piped()
+    //             } else {
+    //                 Stdio::inherit()
+    //             };
+    //             match Command::new(command)
+    //                 .args(args)
+    //                 .stdin(stdin)
+    //                 .stdout(stdout)
+    //                 .spawn()
+    //             {
+    //                 Ok(output) => {
+    //                     prev_command = Some(output);
+    //                 }
+    //                 Err(_) => {
+    //                     // prev_command = None;
+    //                     utils::zash_error(format!("command not found: {}", command));
+    //                     return 1;
+    //                 }
+    //             };
+    //             0
+    //         }
+    //     };
+    //     if status != 0 {
+    //         return status;
+    //     }
+    // }
+    // if let Some(mut final_command) = prev_command {
+    //     final_command.wait().unwrap();
+    // }
     0
 }
 

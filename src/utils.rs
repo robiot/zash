@@ -20,3 +20,17 @@ pub fn get_home_dir() -> String {
     let homedir_pathbuf = home_dir().unwrap();
     return homedir_pathbuf.display().to_string();
 }
+
+pub fn re_contains(text: &str, ptn: &str) -> bool {
+    let re;
+    match regex::Regex::new(ptn) {
+        Ok(x) => {
+            re = x;
+        }
+        Err(e) => {
+            zash_error(format!("Regex new error: {:?}", e));
+            return false;
+        }
+    }
+    re.is_match(text)
+}
