@@ -1,17 +1,21 @@
 use colored::Colorize;
-use crate::parser;
 use crate::utils;
 
-pub fn cd(args: parser::Parser) -> i32
+fn error_cd<T: std::string::ToString>(error: T) {
+    utils::zash_error(format!("{}: {}", "cd".red(), error.to_string()));
+}
+
+pub fn cd(args: Vec<String>) -> i32
 {
-    let homedir = utils::get_home_dir();
-    let mut peekable = args.peekable();
-    if let Some(new_dir) = peekable.peek().as_ref()
+    if args.len() > 1 {
+        error_cd("too many arguments");    
+        return 1;
+    }
+    
+    if let Some(dir) = args.get(0)
     {
-        let dir = new_dir.to_string().replace("~", &homedir.to_string());
-        let root = std::path::Path::new(&dir);
-        if let Err(_) = std::env::set_current_dir(&root) {
-            println!("{}: no such file or directory: {}", "cd".red(), dir);
+        if let Err(err) = std::env::set_current_dir(&std::path::Path::new(&dir)) {
+            error_cd(utils::error_string(err.raw_os_error().unwrap()));
             return 1;
         }
     }

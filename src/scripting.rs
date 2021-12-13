@@ -14,10 +14,9 @@ where
 }
 
 pub fn run_file(filename: String) -> std::io::Result<()> {
-    for line in read_lines(filename)? {
-        if let Ok(ip) = line {
-            shell::run_line(ip);
-        }
+    let mut shell = shell::Shell::new();
+    for line in (read_lines(filename)?).flatten() {
+        shell.run_line(line);
     }
     Ok(())
 }
@@ -27,20 +26,15 @@ pub fn load_rc(homedir: String) {
     if !Path::new(&rcpath).exists() {
         let welcometext = "Welcome to zash";
         println!("{}", welcometext);
-        let mut file = match OpenOptions::new()
-            .create_new(true)
-            .write(true)
-            .open(rcpath) {
-                Ok(m) => m,
-                Err(err) => {
-                    utils::zash_error(err);
-                    return;
-                }
-            };
-        writeln!(file, "echo {}", welcometext).unwrap();
-    } else {
-        if let Err(err) = run_file(rcpath.to_string()) {
-          utils::zash_error(format!("{}: {}", rcpath, err));
+        let mut file = match OpenOptions::new().create_new(true).write(true).open(rcpath) {
+            Ok(m) => m,
+            Err(err) => {
+                utils::zash_error(err);
+                return;
+            }
         };
-    }
+        writeln!(file, "echo {}", welcometext).unwrap();
+    } else if let Err(err) = run_file(rcpath.to_string()) {
+        utils::zash_error(format!("{}: {}", rcpath, err));
+    };
 }

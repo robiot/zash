@@ -6,9 +6,14 @@ pub enum LineToCmdTokens {
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub enum CmdTokens {
-    Command,
-    Arg,
+    Normal,
     Pipe,
     Definition,
     Variable,
+}
+
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub enum ParseCmdTokens {
+    Command,
+    Separator,
 }

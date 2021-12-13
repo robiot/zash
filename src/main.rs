@@ -5,9 +5,9 @@
 use signal_hook::{consts, iterator::Signals};
 use structopt::StructOpt;
 
-// mod builtins;
+mod builtins;
 mod opts;
-mod parser;
+mod parsers;
 mod scripting;
 mod shell;
 mod utils;
@@ -20,7 +20,8 @@ fn main() {
     let opts = opts::Opts::from_args();
 
     if let Some(command) = opts.command {
-        shell::run_line(command);
+        let mut shell = shell::Shell::new();
+        shell.run_line(command);
         utils::exit(0);
     };
 
