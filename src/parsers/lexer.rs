@@ -1,3 +1,5 @@
+// Not really a lexer lexer but it tokenizes the input.
+use super::errors::*;
 use super::tokens;
 
 // Line to commands
@@ -16,8 +18,8 @@ enum LineTCmdState {
 // line_to_cmds("echo hello; echo goodbye")
 // [(Command, "echo hello"), (Separator, ";"), (Command, "echo goodbye")]
 pub fn line_to_cmds(line: &str) -> Vec<(tokens::LineToCmdTokens, std::string::String)> {
-    use LineTCmdState::*;
     use tokens::LineToCmdTokens::*;
+    use LineTCmdState::*;
     let mut result = Vec::new();
     let mut token = String::new();
     let mut sep_before: char = '\0';
@@ -47,17 +49,18 @@ pub fn line_to_cmds(line: &str) -> Vec<(tokens::LineToCmdTokens, std::string::St
             }
             (Normal, _) if c == '&' || c == '|' => {
                 sep_before = c;
+                token.push(c); // If its eoi
                 WaitingSeparator
             }
             (WaitingSeparator, _) => {
                 if sep_before == c {
+                    token.pop();
                     if !token.is_empty() {
                         result.push((Command, token.trim().to_string()));
                     }
                     result.push((Separator, format!("{}{}", c.to_string(), c.to_string())));
                     token.clear();
                 } else {
-                    token.push(sep_before);
                     token.push(c);
                 }
                 Normal
@@ -107,11 +110,7 @@ enum CmdTTokenState {
 }
 
 fn valid_name_check(c: char) -> bool {
-    if !c.is_alphanumeric() && c != '_' && c != '$' {
-        false
-    } else {
-        true
-    }
+    (c.is_alphanumeric() || c == '_' || c == '?') && c != '$'
 }
 
 pub fn is_valid_variable_name(name: String) -> bool {
@@ -123,58 +122,29 @@ pub fn is_valid_variable_name(name: String) -> bool {
     true
 }
 
-// pub fn split_variable_name(name: String) -> Vec<String> {
-//     let mut return_val = vec![String::new(), String::new()];
-//     let mut is_valid = true;
-
-//     for char in name.chars() {
-//         if is_valid {
-//             if !valid_name_check(char) {
-//                 is_valid = false;
-//                 return_val[1].push(char);
-//             } else {
-//                 return_val[0].push(char);
-//             }
-//         } else {
-//             return_val[1].push(char);
-//         }
-//     }
-//     return_val
-// }
-
-// Not result if not used... fix
-
 type CmdToTokensReturn = (tokens::CmdTokens, std::string::String, bool);
 
-pub fn cmd_to_tokens(line: &str) -> Vec<CmdToTokensReturn> {
+pub fn cmd_to_tokens(line: &str) -> Result<Vec<CmdToTokensReturn>> {
+    use tokens::CmdTokens;
     use CmdTTokenState::*;
-    use tokens::CmdTokens::*;
     let mut result: Vec<CmdToTokensReturn> = Vec::new();
     let mut token = String::new();
     let mut state: CmdTTokenState = Normal;
-    let mut has_command: bool = false;
     let mut is_definition: bool = false;
     for (_, c) in line.chars().enumerate() {
-        // println!("state: {:?} -- {}", state, token);
         state = match (state, c) {
-            (Normal, '\\') => Escaped,
-            (Normal, '\'') => SingleQuoted,
-            (Normal, '"') => DoubleQuoted,
+            (Normal, '\\') | (DollarVariable, '\\') => Escaped,
+            (Normal, '\'') | (DollarVariable, '\'') => SingleQuoted,
+            (Normal, '"') | (DollarVariable, '"') => DoubleQuoted,
             (Normal, c) if c == '>' || c == '<' || c == '|' => {
                 if !token.is_empty() {
-                    result.push((Command, token.trim().to_string(), false));
+                    result.push((CmdTokens::Normal, token.trim().to_string(), false));
                 }
-                result.push((Pipe, c.to_string(), false));
+                result.push((CmdTokens::Pipe, c.to_string(), false));
                 token.clear();
                 Normal
             }
             (Normal, '=') => {
-                // if has_dollar {
-                //     return Err(std::io::Error::new(
-                //         std::io::ErrorKind::Other,
-                //         "Redeclaration of variable can't be done with $",
-                //     ));
-                // }
                 // The value stored in token, should now be the variable name
                 if is_valid_variable_name(token.clone()) {
                     // ex TEST? is not valid because of the question mark
@@ -183,32 +153,30 @@ pub fn cmd_to_tokens(line: &str) -> Vec<CmdToTokensReturn> {
                 }
                 Normal
             }
-            (Normal, '$') => {
-                if !token.is_empty() {
-                    result.push((Arg, token.trim().to_string(), true));
-                }
-                token.clear();
-                DollarVariable
-            }
-            (Normal, ' ') => {
+            // Todo: Variables should be supported everywhere
+            // echo ${PATH}a
+            // echo $USER$PWD
+            // (Normal, "echo", false)
+            // (Variable, "USER", true)
+            // (Normal, "$PWD", false)
+            (Normal, ' ') | (Normal, '$') => {
                 if !token.is_empty() {
                     let token_type: tokens::CmdTokens;
                     if is_definition {
                         is_definition = false;
-                        token_type = Definition;
+                        token_type = CmdTokens::Definition;
                     } else {
-                        if has_command == false {
-                            has_command = true;
-                            token_type = Command;
-                        } else {
-                            token_type = Arg;
-                        }
+                        token_type = CmdTokens::Normal;
                     }
-                    result.push((token_type, token.trim().to_string(), false));
+                    result.push((token_type, token.trim().to_string(), c == '$'));
                 }
                 token.clear();
 
-                Normal
+                if c == ' ' {
+                    Normal
+                } else {
+                    DollarVariable
+                }
             }
             (Normal, _) | (Escaped, _) => {
                 token.push(c);
@@ -216,12 +184,12 @@ pub fn cmd_to_tokens(line: &str) -> Vec<CmdToTokensReturn> {
             }
             (DollarVariable, ' ') => {
                 token.push(c);
-                result.push((Variable, token.trim().to_string(), false));
+                result.push((CmdTokens::Variable, token.trim().to_string(), false));
                 token.clear();
                 Normal
             }
             (DollarVariable, c) if !valid_name_check(c) => {
-                result.push((Variable, token.trim().to_string(), true));
+                result.push((CmdTokens::Variable, token.trim().to_string(), true));
                 token.clear();
                 token.push(c);
                 Normal
@@ -249,29 +217,30 @@ pub fn cmd_to_tokens(line: &str) -> Vec<CmdToTokensReturn> {
         };
     }
 
-    // yes this is duplicated code, I will have to figure out a way to
-    // make it in a better way
-    if state == Normal {
-        if !token.is_empty() {
-            let token_type: tokens::CmdTokens;
-            if is_definition {
-                token_type = Definition;
-            } else {
-                if has_command == false {
-                    token_type = Command;
+    match state {
+        Normal => {
+            if !token.is_empty() {
+                let token_type: tokens::CmdTokens;
+                if is_definition {
+                    token_type = CmdTokens::Definition;
                 } else {
-                    token_type = Arg;
+                    token_type = CmdTokens::Normal;
                 }
+                result.push((token_type, token.trim().to_string(), false));
             }
-            result.push((token_type, token.trim().to_string(), false));
+        }
+        DollarVariable => {
+            if !token.is_empty() {
+                result.push((CmdTokens::Variable, token.trim().to_string(), false));
+            }
+        }
+        _ => {
+            // println!("{:?}", state);
+            // Todo: Add more information on error, SyntaxError near token Pipe
+            return Err(SyntaxError);
         }
     }
-    else if state == DollarVariable {
-        if !token.is_empty() {
-            result.push((Variable, token.trim().to_string(), false));
-        }
-    }
-    result
+    Ok(result)
 }
 
 #[cfg(test)]

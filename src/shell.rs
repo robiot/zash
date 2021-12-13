@@ -1,4 +1,5 @@
 use colored::Colorize;
+use parsers::tokens::*;
 use rustyline::completion::{Completer, Pair, ShellCompleter};
 use rustyline::config::OutputStreamType;
 use rustyline::error::ReadlineError;
@@ -8,92 +9,121 @@ use rustyline::validate::{MatchingBracketValidator, Validator};
 use rustyline::{CompletionType, Config, Context, EditMode, Editor};
 use rustyline_derive::Helper;
 use std::borrow::Cow::{self, Borrowed, Owned};
-use parser::tokens::*;
-// use std::process::{Child, Command, Stdio};
+use std::process::{Child, Command, Stdio};
+// use std::collections::HashMap;
 
-
-// use crate::builtins;
-use crate::parser;
+use crate::builtins;
+use crate::parsers;
 use crate::scripting;
 use crate::utils;
 
-pub fn run_line(line: String) {
-    let mut status = 0;
-    let mut sep = String::new();
-    for token in parser::lexer::line_to_cmds(line.trim()) {
-        if token.0 == LineToCmdTokens::Separator {
-            sep = token.1.clone();
-            continue;
-        }
-
-        // "&& "Don't run the other commands if the one before failed
-        //
-        // "||" = "Or"
-        // "ls || dir"
-        // If ls does not succed it runs "dir"
-        // If ls succed it does not run dir
-        if (sep == "&&" && status != 0) || (sep == "||" && status == 0) {
-            break;
-        }
-
-        status = exec_command(token);
-    }
+#[derive(Debug, Clone)]
+pub struct Shell {
+    // pub variables: HashMap<String, String>,
+    pub status: i32,
 }
 
-fn exec_command(token: (LineToCmdTokens, std::string::String)) -> i32 {
-    let parts = parser::parser::parse_cmd(token.1.clone());
+impl Shell {
+    pub fn new() -> Self {
+        Self {
+            // variables: HashMap::new()
+            status: 0,
+        }
+    }
 
-    println!("{:#?}", parts);
-
-    // Add up args until Pipe?
-
-    // let mut pipe_commands = parser::Parser::new(token.1.trim(), "|".to_string(), true).peekable();
-    // let mut prev_command = None;
-    // while let Some(pipe_command) = pipe_commands.next() {
-    //     let mut args = parser::Parser::new(pipe_command.trim(), " ".to_string(), false);
-    //     let command = match args.next() {
-    //         Some(n) => n,
-    //         None => return 1,
-    //     };
-    //     let status = match command.as_ref() {
-    //         // Builtins
-    //         "cd" => builtins::cd::cd(args),
-    //         "exit" => builtins::exit::exit(args),
-    //         command => {
-    //             let stdin = prev_command.map_or(Stdio::inherit(), |output: Child| {
-    //                 Stdio::from(output.stdout.unwrap())
-    //             });
-    //             let stdout = if pipe_commands.peek().is_some() {
-    //                 Stdio::piped()
-    //             } else {
-    //                 Stdio::inherit()
-    //             };
-    //             match Command::new(command)
-    //                 .args(args)
-    //                 .stdin(stdin)
-    //                 .stdout(stdout)
-    //                 .spawn()
-    //             {
-    //                 Ok(output) => {
-    //                     prev_command = Some(output);
-    //                 }
-    //                 Err(_) => {
-    //                     // prev_command = None;
-    //                     utils::zash_error(format!("command not found: {}", command));
-    //                     return 1;
-    //                 }
-    //             };
-    //             0
-    //         }
-    //     };
-    //     if status != 0 {
-    //         return status;
-    //     }
-    // }
-    // if let Some(mut final_command) = prev_command {
-    //     final_command.wait().unwrap();
-    // }
-    0
+    pub fn run_line(&mut self, line: String) {
+        let mut sep = String::new();
+        for token in parsers::lexer::line_to_cmds(line.trim()) {
+            if token.0 == LineToCmdTokens::Separator {
+                sep = token.1.clone();
+                continue;
+            }
+            // "&& "Don't run the other commands if the one before failed
+            //
+            // "||" = "Or"
+            // "ls || dir"
+            // If ls does not succed it runs "dir"
+            // If ls succed it does not run dir
+            if (sep == "&&" && self.status != 0) || (sep == "||" && self.status == 0) {
+                break;
+            }
+            self.status = Self::exec_command(self, token);
+        }
+    }
+    fn exec_command(&mut self, token: (LineToCmdTokens, std::string::String)) -> i32 {
+        let parts = match parsers::parser::parse_cmd(token.1, self.status) {
+            Ok(m) => m,
+            Err(err) => {
+                utils::zash_error(err);
+                return 0;
+            }
+        };
+        // println!("{:?}", parts);
+        let mut prev_command = None;
+        for (i, part) in parts.iter().enumerate() {
+            match part.0 {
+                ParseCmdTokens::Command => {
+                    let mut args = part.1.clone();
+                    // Probably a very hacky way of getting first arg then removing it
+                    let clon = args.clone(); // So it lives longer
+                    let command = match clon.get(0) {
+                        Some(m) => m,
+                        None => return 1,
+                    };
+                    args.remove(0);
+                    let status = match command.as_ref() {
+                        // Builtins
+                        "cd" => builtins::cd::cd(args),
+                        "exit" => builtins::exit::exit(args),
+                        command => {
+                            let stdin = prev_command.map_or(Stdio::inherit(), |output: Child| {
+                                Stdio::from(output.stdout.unwrap())
+                            });
+                            let stdout = if parts.get(i + 1).is_some()
+                                && parts.get(i + 1).unwrap().0 == ParseCmdTokens::Separator
+                            {
+                                Stdio::piped()
+                            } else {
+                                Stdio::inherit()
+                            };
+                            match Command::new(command)
+                                .args(args.clone())
+                                .stdin(stdin)
+                                .stdout(stdout)
+                                .spawn()
+                            {
+                                Ok(output) => {
+                                    prev_command = Some(output);
+                                }
+                                Err(_) => {
+                                    // prev_command = None;
+                                    utils::zash_error(format!("command not found: {}", command));
+                                    return 1;
+                                }
+                            };
+                            0
+                        }
+                    };
+                    if status != 0 {
+                        return status;
+                    }
+                }
+                ParseCmdTokens::Separator => {
+                    // Maybe do something with redirects
+                    if part.1.clone() != vec!["|"] {
+                        utils::zash_error("this feature is currently not implemented");
+                        return 1;
+                    }
+                }
+            }
+        }
+        if let Some(final_command) = prev_command {
+            if let Some(status_code) = final_command.wait_with_output().unwrap().status.code() {
+                return status_code;
+            }
+        }
+        127
+    }
 }
 
 #[derive(Helper)]
@@ -140,7 +170,7 @@ impl Highlighter for ShellHelper {
     }
 
     fn highlight_hint<'h>(&self, hint: &'h str) -> Cow<'h, str> {
-        Owned(format!("{}", hint.dimmed()).to_owned())
+        Owned(format!("{}", hint.dimmed()))
     }
 
     fn highlight<'l>(&self, line: &'l str, pos: usize) -> Cow<'l, str> {
@@ -192,6 +222,7 @@ pub fn shell() {
     if rl.load_history(&hispath).is_err() {
         utils::zash_error("No previous history");
     }
+    let mut shell = Shell::new();
 
     loop {
         let mut current_dir = std::env::current_dir().unwrap().display().to_string();
@@ -210,11 +241,10 @@ pub fn shell() {
         );
         rl.helper_mut().expect("No helper").prompt = p.to_string();
         let readline = rl.readline(&p);
-
         match readline {
             Ok(line) => {
                 rl.add_history_entry(line.as_str());
-                run_line(line);
+                shell.run_line(line);
             }
             Err(ReadlineError::Interrupted) => {
                 continue;
