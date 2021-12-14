@@ -86,6 +86,7 @@ impl Shell {
                             } else {
                                 Stdio::inherit()
                             };
+                            // If application does not print something with a new line at end, it would get overwritten by the shell
                             match Command::new(command)
                                 .args(args.clone())
                                 .stdin(stdin)

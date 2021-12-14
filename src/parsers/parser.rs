@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use super::errors::*;
 use super::*;
 use crate::utils;
@@ -13,6 +15,7 @@ pub fn parse_cmd(token: String, status: i32) -> Result<Vec<(tokens::ParseCmdToke
     let mut is_definition: bool = false;
     // Todo: part should give boolean if escaped/quoted or not, for wildcards, variables and ~
     for part in lexer::cmd_to_tokens(&token)?.iter().peekable() {
+        println!("{:?}", part);
         before_token = match part.0 {
             tokens::CmdTokens::Pipe => {
                 if before_token.is_none() || before_token == Some(tokens::CmdTokens::Pipe) {
@@ -60,12 +63,20 @@ pub fn parse_cmd(token: String, status: i32) -> Result<Vec<(tokens::ParseCmdToke
                     } else {
                         // Glob paths. ex ./*.md
                         if let Ok(globs) = glob(&val) {
-                            let mut has_entry = false;
-                            for entry in globs.flatten() {
-                                has_entry = true;
-                                result_part.push(entry.display().to_string());
-                            }
-                            if !has_entry {
+                            let globs_vec: Vec<PathBuf> = globs.flatten().collect();
+
+                            // If there is none
+                            if globs_vec.len() > 0 && globs_vec[0].display().to_string() != "." {
+                                for entry in globs_vec {
+                                    let entry_string = entry.display().to_string();
+                                    if !entry_string.starts_with("/") {
+                                        result_part
+                                            .push(format!("./{}", entry.display().to_string()));
+                                    } else {
+                                        result_part.push(entry.display().to_string());
+                                    }
+                                }
+                            } else {
                                 result_part.push(val);
                             }
                         }
