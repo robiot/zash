@@ -188,10 +188,11 @@ pub fn cmd_to_tokens(line: &str) -> Result<Vec<CmdToTokensReturn>> {
                 token.clear();
                 Normal
             }
+            
             (DollarVariable, c) if !valid_name_check(c) => {
                 result.push((CmdTokens::Variable, token.trim().to_string(), true));
                 token.clear();
-                token.push(c);
+                token.push(c); // Todo: See if variable
                 Normal
             }
             (DollarVariable, _) => {
