@@ -66,10 +66,10 @@ pub fn parse_cmd(token: String, status: i32) -> Result<Vec<(tokens::ParseCmdToke
                             let globs_vec: Vec<PathBuf> = globs.flatten().collect();
 
                             // If there is none
-                            if globs_vec.len() > 0 && globs_vec[0].display().to_string() != "." {
+                            if !globs_vec.is_empty() && globs_vec[0].display().to_string() != "." {
                                 for entry in globs_vec {
                                     let entry_string = entry.display().to_string();
-                                    if !entry_string.starts_with("/") {
+                                    if !entry_string.starts_with('/') {
                                         result_part
                                             .push(format!("./{}", entry.display().to_string()));
                                     } else {
