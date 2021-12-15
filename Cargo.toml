@@ -5,7 +5,7 @@ edition = "2018"
 license = "GPL-3.0"
 name = "zash"
 repository = "https://github.com/robiot/zash"
-version = "0.3.0"
+version = "0.3.1"
 
 [dependencies]
 colored = "2.0.0"

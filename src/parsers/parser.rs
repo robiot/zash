@@ -15,7 +15,7 @@ pub fn parse_cmd(token: String, status: i32) -> Result<Vec<(tokens::ParseCmdToke
     let mut is_definition: bool = false;
     // Todo: part should give boolean if escaped/quoted or not, for wildcards, variables and ~
     for part in lexer::cmd_to_tokens(&token)?.iter().peekable() {
-        println!("{:?}", part);
+        // println!("{:?}", part);
         before_token = match part.0 {
             tokens::CmdTokens::Pipe => {
                 if before_token.is_none() || before_token == Some(tokens::CmdTokens::Pipe) {
